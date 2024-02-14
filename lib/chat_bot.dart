@@ -108,11 +108,10 @@ class _ChatBotState extends State<ChatBot> {
                       isTyping = false; // Reset typing state
                     });
 
-                    _scrollController.animateTo(
-                      0.0,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                    );
+                    WidgetsBinding.instance!.addPostFrameCallback((_) {
+                      _scrollController
+                          .jumpTo(_scrollController.position.maxScrollExtent);
+                    });
                   },
                 ),
               ],
