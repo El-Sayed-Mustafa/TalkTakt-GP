@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:talk_takt_gp/chat_messages.dart';
 
 class ChatBot extends StatefulWidget {
   const ChatBot({Key? key}) : super(key: key);
@@ -33,25 +35,34 @@ class _ChatBotState extends State<ChatBot> {
   }
 
   void _startListening() async {
-    bool available = await _speech.initialize(
-      onStatus: (status) {
-        print('Speech recognition status: $status');
-      },
-      onError: (errorNotification) {
-        print('Speech recognition error: $errorNotification');
-      },
-    );
+    // Request microphone permission
+    var status = await Permission.microphone.request();
 
-    if (available) {
-      _speech.listen(
-        onResult: (result) {
-          setState(() {
-            _controller.text = result.recognizedWords;
-          });
+    if (status == PermissionStatus.granted) {
+      // Microphone permission granted, initialize and start speech recognition
+      bool available = await _speech.initialize(
+        onStatus: (status) {
+          print('Speech recognition status: $status');
+        },
+        onError: (errorNotification) {
+          print('Speech recognition error: $errorNotification');
         },
       );
+
+      if (available) {
+        _speech.listen(
+          onResult: (result) {
+            setState(() {
+              _controller.text = result.recognizedWords;
+            });
+          },
+        );
+      } else {
+        print('Speech recognition not available');
+      }
     } else {
-      print('Speech recognition not available');
+      // Microphone permission denied
+      print('Microphone permission denied');
     }
   }
 
@@ -72,41 +83,9 @@ class _ChatBotState extends State<ChatBot> {
       body: Column(
         children: [
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final message = _messages[index];
-                  return Align(
-                    alignment: message['sender'] == 'user'
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxWidth: maxMessageWidth,
-                      ),
-                      padding: const EdgeInsets.all(8.0),
-                      margin: const EdgeInsets.symmetric(vertical: 4.0),
-                      decoration: BoxDecoration(
-                        color: message['sender'] == 'user'
-                            ? Colors.blue
-                            : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      child: Text(
-                        message['text']!,
-                        style: TextStyle(
-                          color: message['sender'] == 'user'
-                              ? Colors.white
-                              : Colors.black,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            child: ChatMessages(
+              messages: _messages,
+              maxMessageWidth: maxMessageWidth,
             ),
           ),
           Padding(
