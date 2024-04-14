@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:talk_takt_gp/api_service.dart';
@@ -119,6 +117,7 @@ class _ChatBotState extends State<ChatBot> {
           botResponse = botResponse.substring(0, startIndex);
         }
       }
+      botResponse = botResponse.replaceAll(RegExp(r'\s*\([^)]*\)\s*'), ' ');
 
       _messages.add({'text': botResponse.trim(), 'sender': 'bot'});
 
