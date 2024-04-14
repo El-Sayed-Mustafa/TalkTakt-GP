@@ -74,16 +74,16 @@ class _ChatBotState extends State<ChatBot> {
   }
 
   Future<void> _sendMessage(String message) async {
+    setState(() {
+      isTyping = true; // Set isTyping to true when sending a message
+    });
+
     _messages.add({'text': message, 'sender': 'user'});
     setState(() {});
     await _fetchModelOutput(message);
   }
 
   Future<void> _fetchModelOutput(String userMessage) async {
-    setState(() {
-      isTyping = true;
-    });
-
     String inputPrompt =
         "<s>[INST]As a best friend, please respond to the following sentence in one sentence only: \"$userMessage\"[/INST]";
 
@@ -105,11 +105,10 @@ class _ChatBotState extends State<ChatBot> {
 
       List<dynamic> data = await query(payload);
       String botResponse = data[0]['generated_text'];
-      print(botResponse);
 
       botResponse = botResponse.replaceFirst(inputPrompt, '').trim();
 
-      // Remove text enclosed within parentheses
+      // Remove text after the opening parenthesis if no closing parenthesis is found
       int startIndex = botResponse.indexOf('(');
       if (startIndex != -1) {
         int endIndex = botResponse.indexOf(')', startIndex);
@@ -126,7 +125,8 @@ class _ChatBotState extends State<ChatBot> {
       print(error);
     } finally {
       setState(() {
-        isTyping = false;
+        isTyping =
+            false; // Set isTyping back to false when API response is received
       });
     }
   }
