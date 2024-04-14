@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:talk_takt_gp/grammer_hint.dart';
 
 class ChatMessages extends StatefulWidget {
   final List<Map<String, String>> messages;
@@ -17,7 +18,6 @@ class ChatMessages extends StatefulWidget {
 
 class _ChatMessagesState extends State<ChatMessages> {
   final FlutterTts _flutterTts = FlutterTts();
-  int? _currentWordStart, _currentWordEnd;
 
   @override
   void initState() {
@@ -27,10 +27,7 @@ class _ChatMessagesState extends State<ChatMessages> {
 
   void initTTS() {
     _flutterTts.setProgressHandler((text, start, end, word) {
-      setState(() {
-        _currentWordStart = start;
-        _currentWordEnd = end;
-      });
+      // Handle progress updates if needed
     });
     _flutterTts.getVoices.then((data) {
       try {
@@ -46,80 +43,73 @@ class _ChatMessagesState extends State<ChatMessages> {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: ListView.builder(
-        itemCount: widget.messages.length,
+        itemCount: widget.messages.length * 2,
         itemBuilder: (context, index) {
-          final message = widget.messages[index];
-          final isUser = message['sender'] == 'user';
+          final int messageIndex = index ~/ 2;
+          final bool isMessage = index % 2 == 0;
 
-          return Align(
-            alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-            child: Row(
-              mainAxisAlignment:
-                  isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          if (isMessage) {
+            final message = widget.messages[messageIndex];
+            final isUser = message['sender'] == 'user';
+
+            return Column(
+              crossAxisAlignment:
+                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                Container(
-                  constraints: BoxConstraints(
-                    maxWidth: widget.maxMessageWidth,
-                  ),
-                  padding: const EdgeInsets.all(8.0),
-                  margin: const EdgeInsets.symmetric(vertical: 4.0),
-                  decoration: BoxDecoration(
-                    color: isUser ? Colors.blue : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        color: isUser ? Colors.white : Colors.black,
+                Align(
+                  alignment:
+                      isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Row(
+                    mainAxisAlignment: isUser
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
+                    children: [
+                      Container(
+                        constraints: BoxConstraints(
+                          maxWidth: widget.maxMessageWidth,
+                        ),
+                        padding: const EdgeInsets.all(8.0),
+                        margin: const EdgeInsets.symmetric(vertical: 4.0),
+                        decoration: BoxDecoration(
+                          color: isUser ? Colors.blue : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Text(
+                          message['text']!,
+                          style: TextStyle(
+                            color: isUser ? Colors.white : Colors.black,
+                          ),
+                        ),
                       ),
-                      children: isUser
-                          ? [TextSpan(text: message['text']!)]
-                          : _buildTextSpans(message['text']!),
-                    ),
+                      if (!isUser)
+                        Padding(
+                          padding: const EdgeInsets.all(0),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(
+                              Icons.play_circle,
+                              size: 25,
+                            ),
+                            onPressed: () {
+                              _flutterTts.speak(message['text']!);
+                            },
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                if (!isUser)
-                  Padding(
-                    padding: const EdgeInsets.all(0), // Set padding to zero
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(
-                        Icons.play_circle,
-                        size: 25,
-                      ),
-                      onPressed: () {
-                        _flutterTts.speak(message['text']!);
-                      },
-                    ),
+                if (isUser)
+                  GrammarHint(
+                    userMessage: message['text']!,
                   ),
               ],
-            ),
-          );
+            );
+          } else {
+            return const SizedBox(height: 8.0);
+          }
         },
       ),
     );
-  }
-
-  List<TextSpan> _buildTextSpans(String text) {
-    if (_currentWordStart == null || _currentWordEnd == null) {
-      return [TextSpan(text: text)];
-    }
-
-    final List<TextSpan> spans = [];
-    spans.add(TextSpan(
-      text: text.substring(0, _currentWordStart),
-    ));
-    spans.add(TextSpan(
-      text: text.substring(_currentWordStart!, _currentWordEnd),
-      style: const TextStyle(
-        backgroundColor: Colors.purpleAccent,
-      ),
-    ));
-    spans.add(TextSpan(
-      text: text.substring(_currentWordEnd!),
-    ));
-
-    return spans;
   }
 }

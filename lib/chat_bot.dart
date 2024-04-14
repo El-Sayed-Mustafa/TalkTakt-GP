@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:talk_takt_gp/api_service.dart';
 import 'package:talk_takt_gp/chat_messages.dart';
 
 class ChatBot extends StatefulWidget {
@@ -72,6 +75,69 @@ class _ChatBotState extends State<ChatBot> {
     super.dispose();
   }
 
+  Future<void> _sendMessage(String message) async {
+    _messages.add({'text': message, 'sender': 'user'});
+    setState(() {});
+    await _fetchModelOutput(message);
+  }
+
+  Future<void> _fetchModelOutput(String userMessage) async {
+    setState(() {
+      isTyping = true;
+    });
+
+    String inputPrompt =
+        "<s>[INST]As a best friend, please respond to the following sentence in one sentence only: \"$userMessage\"[/INST]";
+
+    try {
+      // API request payload
+      Map<String, dynamic> payload = {
+        "inputs": inputPrompt,
+        "pipeline_tag": "conversation",
+        "parameters": {
+          "max_new_tokens": 50,
+          "temperature": 0.7,
+          "top_k": 10,
+          "top_p": 0.9,
+          "min_length": 20,
+          "repetition_penalty": 1,
+          "stop": ["EOS"]
+        }
+      };
+
+      List<dynamic> data = await query(payload);
+      String botResponse = data[0]['generated_text'];
+      print(botResponse);
+
+      botResponse = botResponse.replaceFirst(inputPrompt, '').trim();
+
+      // Remove text enclosed within parentheses
+      int startIndex = botResponse.indexOf('(');
+      if (startIndex != -1) {
+        int endIndex = botResponse.indexOf(')', startIndex);
+        if (endIndex == -1) {
+          botResponse = botResponse.substring(0, startIndex);
+        }
+      }
+
+      _messages.add({'text': botResponse.trim(), 'sender': 'bot'});
+
+      _scrollToBottom();
+    } catch (error) {
+      print(error);
+    } finally {
+      setState(() {
+        isTyping = false;
+      });
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance!.addPostFrameCallback((_) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     double maxMessageWidth = MediaQuery.of(context).size.width * 2 / 3;
@@ -119,26 +185,15 @@ class _ChatBotState extends State<ChatBot> {
                       ? const Icon(Icons.send)
                       : const Icon(Icons.keyboard_voice, size: 30),
                   onPressed: () {
-                    setState(() {
-                      if (isTyping) {
-                        // Handle regular text input
-                        String userMessage = _controller.text;
-                        _controller.clear();
-                        _messages.add({'text': userMessage, 'sender': 'user'});
-                        String botResponse =
-                            userMessage; // Update with actual bot response
-                        _messages.add({'text': botResponse, 'sender': 'bot'});
-                        isTyping = false; // Reset typing state
-                      } else {
-                        // Handle speech-to-text
-                        _startListening();
-                      }
-                    });
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _scrollController
-                          .jumpTo(_scrollController.position.maxScrollExtent);
-                    });
+                    if (isTyping) {
+                      // Handle regular text input
+                      String userMessage = _controller.text;
+                      _controller.clear();
+                      _sendMessage(userMessage);
+                    } else {
+                      // Handle speech-to-text
+                      _startListening();
+                    }
                   },
                 ),
               ],
